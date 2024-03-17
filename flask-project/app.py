@@ -4,20 +4,23 @@ import cv2
 import numpy as np
 from sklearn.decomposition import PCA
 import warnings
+import shutil 
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-    
+if os.path.exists(UPLOAD_FOLDER):
+    shutil.rmtree(UPLOAD_FOLDER) 
+os.makedirs(UPLOAD_FOLDER)  
+
 RESULTS_FOLDER = 'results'
 app.config['RESULTS_FOLDER'] = RESULTS_FOLDER
 
-if not os.path.exists(RESULTS_FOLDER):
-    os.makedirs(RESULTS_FOLDER)
+if os.path.exists(RESULTS_FOLDER):
+    shutil.rmtree(RESULTS_FOLDER)
+os.makedirs(RESULTS_FOLDER) 
 
 def multiply_quaternions(q1, q2):
     w1, x1, y1, z1 = q1
@@ -88,7 +91,8 @@ def normaliseImage(img):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', uploaded_image_path=None, processed_image_url=None)
+
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -108,7 +112,8 @@ def process():
         cv2.imwrite(qpca_img_path, (norm_img * 255).astype(np.uint8))
 
         processed_image_url = url_for('result_file', filename='qpca_' + image_file.filename)
-        return render_template('result.html', processed_image_url=processed_image_url)
+        uploaded_image_path = url_for('uploaded_file', filename=image_file.filename)
+        return render_template('index.html', uploaded_image_path=uploaded_image_path, processed_image_url=processed_image_url)
     else:
         return 'No image uploaded.'
 
