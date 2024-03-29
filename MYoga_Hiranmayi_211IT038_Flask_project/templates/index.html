@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processing</title>
+    <!-- Inside the <style> tag -->
+        <style>
+            /* CSS styles */
+            body {
+                font-family: Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center; 
+                text-align: center; 
+                color: rgb(255, 255, 255);
+                height: 100vh;
+                /*background: linear-gradient(to right top, #2980b9, #6c5ce7);*/
+                /* Slant gradient background */
+                background: linear-gradient(to bottom left , rgb(0, 213, 255),rgb(113, 109, 225),rgb(233, 75, 102)  );
+                background: url('https://img.lovepik.com/background/20211022/large/lovepik-colorful-technology-line-gradient-background-image_401770327.jpg');
+                font-size: large;
+            }            
+            .header-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .Names{
+                font-size:30px;
+                padding: 10px 10px;
+                font-weight: 300;
+                color: #ffffff; /* White text color */
+            }
+            .ipop {
+                display: flex;
+                color: black;
+                flex-direction: row;
+                justify-content: space-between;
+                width: 80%; 
+                margin: 0 auto; 
+                margin-top: 20px; 
+            }
+            .input, .output {
+                width: 45%; 
+                text-align: center; 
+                background: linear-gradient(to bottom right , rgb(201, 234, 241),rgb(172, 170, 236),rgb(244, 161, 175)  );/* Semi-transparent white background */
+                
+                padding: 20px;
+                border-radius: 10px;
+                height: 69vh;
+            }
+            .input-preview {
+                /* */
+            }
+            .output {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                background-color: rgba(255, 255, 255); /* Semi-transparent white background */
+                padding: 15px;
+                border-radius: 10px;
+            }
+            .input form {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .input form input[type="file"],
+            .input form select {
+                /*margin-bottom: 30px;*/
+                padding: 5px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                background-color: #f2f2f2; /* Light gray background */
+            }
+            .input form button[type="button"] {
+                background-color: #4CAF50; /* Green background color */
+                margin-left: 10px;
+                border: none;
+                color: white;
+                padding: 10px 10px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+            .download-button {
+                background-color: #4CAF50; /* Green background color */
+                border: none;
+                color: white;
+                padding: 10px 15px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+            .download-button a {
+                color: white;
+                text-decoration: none;
+            }
+            img{
+                max-width:600px;
+                max-height: 400px;
+                margin: 20px 20px;
+            }
+        </style>
+        
+
+</head>
+<body>
+    <div class="header-container">
+        <h1>UAV Quaternion Based Image Segmentation</h1>
+        <div class="Names">
+            Implemented by- 
+            Arvind Prabhu (211IT010),
+            M Yoga Hiranmayi (211IT038),
+            Saatvik Krishna M (211IT056)
+        </div>
+    </div>
+    <div class="ipop">
+        <div class="input">
+            <h2>UPLOAD IMAGE</h2>
+            <form id="imageForm" enctype="multipart/form-data">
+                <input type="file" id="image" accept="image/*">
+                <label for="x">Select Scale:</label>
+                <select id="x" name="x">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+                <label for="window_size">Window size:</label>
+                <select id="window_size" name="window_size">
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+                <button type="button" onclick="processImage()">Process Image</button>
+            </form>
+            <div class="input-preview">
+                {% if uploaded_image_path %}
+                <img src="{{ uploaded_image_path }}" alt="Uploaded Image" width="416">
+                {% endif %}
+            </div>
+            <p id="inputSize"></p>
+        </div>
+        <div class="output">
+            <h2>OUTPUT IMAGE</h2>
+            {% if processed_image_url %}
+            <img src="{{ processed_image_url }}" alt="Processed Image" width="416">
+            <p>Selected scale: {{ selected_x }}, Window Size: {{ selected_window_size }}</p>
+            <button class="download-button">
+                <a href="{{ processed_image_url }}" download>Download Image</a>
+            </button>
+            {% endif %}
+        </div>        
+    </div>
+    <script>
+        function processImage() {
+            var formData = new FormData();
+            var imageFile = document.getElementById('image').files[0];
+            var xValue = document.getElementById('x').value;
+            var windowSize = document.getElementById('window_size').value;
+    
+            formData.append('image', imageFile);
+            formData.append('x', xValue);
+            formData.append('window_size', windowSize);
+    
+            var imageSizeMB = (imageFile.size / (1024 * 1024)).toFixed(2); 
+            var imageSizeHTML = `<p>Image Size: ${imageSizeMB} MB</p>`;
+            document.getElementById('inputSize').innerHTML = imageSizeHTML;
+    
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/process', true);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    document.querySelector('.output').innerHTML = response.outputHtml;
+                }
+            };
+            xhr.send(formData);
+    
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var img = new Image();
+                img.src = event.target.result;
+                document.querySelector('.input-preview').innerHTML = ''; // Clear previous content
+                document.querySelector('.input-preview').appendChild(img);
+            };
+            reader.readAsDataURL(imageFile);
+        }
+    </script>
+    
+    
+    
+    
+    
+
+</body>
+
+</html>

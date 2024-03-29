@@ -5,22 +5,23 @@ import numpy as np
 from sklearn.decomposition import PCA
 import warnings
 import shutil 
+from time import time
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-if os.path.exists(UPLOAD_FOLDER):
-    shutil.rmtree(UPLOAD_FOLDER) 
-os.makedirs(UPLOAD_FOLDER)  
+# if os.path.exists(UPLOAD_FOLDER):
+#     shutil.rmtree(UPLOAD_FOLDER) 
+# os.makedirs(UPLOAD_FOLDER)  
 
 RESULTS_FOLDER = 'results'
 app.config['RESULTS_FOLDER'] = RESULTS_FOLDER
 
-if os.path.exists(RESULTS_FOLDER):
-    shutil.rmtree(RESULTS_FOLDER)
-os.makedirs(RESULTS_FOLDER) 
+# if os.path.exists(RESULTS_FOLDER):
+#     shutil.rmtree(RESULTS_FOLDER)
+# os.makedirs(RESULTS_FOLDER) 
 
 def multiply_quaternions(q1, q2):
     w1, x1, y1, z1 = q1
@@ -91,8 +92,13 @@ def normaliseImage(img):
 
 @app.route('/')
 def index():
-    return render_template('index.html', uploaded_image_path=None, processed_image_url=None)
+        return render_template('index.html')
 
+from flask import jsonify
+
+from time import time
+
+from time import time
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -101,21 +107,47 @@ def process():
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_file.filename)
         image_file.save(image_path)
 
+        start_time = time()  
+
         img = cv2.imread(image_path)
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        SF = 1/np.sqrt(2) # Define scale factor
+        x_value = int(request.form['x'])
+        window_size = int(request.form['window_size'])
+        SF = 1 / np.sqrt(x_value)  
         rotated_img = applyMask(rgb_img, SF)
-        QPCA_img = QPCA_Seg(rotated_img, 3)
+        QPCA_img = QPCA_Seg(rotated_img, window_size)
         norm_img = normaliseImage(QPCA_img)
+
+        end_time = time()  
+        processing_time = end_time - start_time  
+
+        if processing_time >= 60:
+            processing_time = processing_time / 60
+            time_unit = "minutes"
+        else:
+            time_unit = "seconds"
 
         qpca_img_path = os.path.join(app.config['RESULTS_FOLDER'], 'qpca_' + image_file.filename)
         cv2.imwrite(qpca_img_path, (norm_img * 255).astype(np.uint8))
 
         processed_image_url = url_for('result_file', filename='qpca_' + image_file.filename)
         uploaded_image_path = url_for('uploaded_file', filename=image_file.filename)
-        return render_template('index.html', uploaded_image_path=uploaded_image_path, processed_image_url=processed_image_url)
+        
+        output_html = f'''
+            <h2>OUTPUT IMAGE</h2>
+            <img src="{processed_image_url}" alt="Processed Image">
+            <p>Selected scale: {x_value}, Window Size: {window_size}, Processing Time: {processing_time:.2f} {time_unit}</p>
+            <button class="download-button">
+                <a href="{processed_image_url}" download>Download Image</a>
+            </button>
+        '''
+
+        return jsonify({'outputHtml': output_html})
+
     else:
-        return 'No image uploaded.'
+        return jsonify({'error': 'No image uploaded.'})
+
+
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
